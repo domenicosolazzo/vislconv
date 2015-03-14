@@ -14,7 +14,7 @@ def to_conll_word(word):
          underscore(cg3.coarse_tag(word)),
          underscore("|".join(cg3.fine_tag_list(word))),
          '_', '_', '_', '_', '_']
-    ).encode('utf-8')
+    )
 
 
 def to_conll_words(sentence):
