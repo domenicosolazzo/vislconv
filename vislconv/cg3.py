@@ -8,7 +8,10 @@ Returns compword with whitespace substituted with underscores."""
 
 
 # FIXME Will probably barf on larg files, make use of generators
-def read(cg3_file, newline_eos=True):
+# TODO use newline_eos and marker_eos to enable users to choose none,
+#      one or both ways to discover sentence-end markers
+#      (these arguments are currently not in use)
+def read(cg3_file, newline_eos=True, marker_eos=True):
     """Read a file containing CG3-formatted data.
 
 Returns: a list of sentences of the following structure:
@@ -18,7 +21,13 @@ Returns: a list of sentences of the following structure:
     """
     rx_token = re.compile("^\"<(.+?)>\"$")
     rx_attributes = re.compile("^\s+\"(.+?)\"\s+(.+)$")
+
+    # For files that use an empty line to mark sentence-end
     rx_eos = re.compile("^\s*$")
+
+    # For files that use the "<<<" token to mark sentence-end
+    marker_eos = "<<<"
+    was_eos = False  # Set to true whenever "<<<" is found
 
     curr_token = None
     curr_word = []
@@ -27,11 +36,15 @@ Returns: a list of sentences of the following structure:
 
     for line in cg3_file:
 
+        # Empty line or sentence-end marker marks sentence-end, raise
+        # eos flag
+        if rx_eos.match(line) or marker_eos in line:
+            was_eos = True
+
         if rx_token.match(line):
             curr_token = transform_whitespace(
                 rx_token.match(line).group(1)
             )
-            continue
 
         if rx_attributes.match(line):
             curr_lemma = transform_whitespace(
@@ -44,14 +57,15 @@ Returns: a list of sentences of the following structure:
                 curr_sentence += [[curr_token] + curr_word]
                 curr_token = None
                 curr_word = []
-                continue
 
-        if rx_eos.match(line):
+        # If a sentence-end marker was encountered in the previuos
+        # iteration, process the sentence
+        if was_eos:
             result += [curr_sentence]
             curr_sentence = []
             curr_token = None
             curr_word = []
-            continue
+            was_eos = False
 
     # Final cleanup (in case of missing blank line or attributes at the end)
     if curr_token and curr_word:
@@ -60,7 +74,7 @@ Returns: a list of sentences of the following structure:
         curr_word = []
 
     if curr_sentence:
-        result += curr_sentence
+        result += [curr_sentence]
 
     return result
 
